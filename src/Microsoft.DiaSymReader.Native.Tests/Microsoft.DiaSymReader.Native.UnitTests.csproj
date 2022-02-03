@@ -9,6 +9,7 @@
       Testing 64bit only on Desktop suffixiently covers our interop code paths.  
     -->
     <TestArchitectures Condition="'$(TargetFramework)' == 'net46'">x64;x86</TestArchitectures>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
 
   </PropertyGroup>
   <ItemGroup>

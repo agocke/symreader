@@ -14,9 +14,15 @@ namespace Microsoft.DiaSymReader
     /// the Read and Write methods take an <see cref="IntPtr"/> instead of a byte[] to avoid the
     /// allocation cost when called from native code.
     /// </summary>
+#if !NET6_0_OR_GREATER
     [Guid("0000000c-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown), ComImport]
+#endif
     internal unsafe interface IUnsafeComStream
     {
+#if NET6_0_OR_GREATER
+        public readonly static Guid IID = new Guid("0000000c-0000-0000-C000-000000000046");
+#endif
+
         // ISequentialStream portion
         void Read(byte* pv, int cb, int* pcbRead);
         void Write(byte* pv, int cb, int* pcbWritten);

@@ -7,7 +7,9 @@ using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.InteropServices;
-using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
+using System.Collections;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace Microsoft.DiaSymReader
 {
@@ -265,5 +267,272 @@ namespace Microsoft.DiaSymReader
             throw new NotSupportedException();
         }
     }
+
+#if NET6_0_OR_GREATER
+    internal unsafe sealed class ComMemoryStreamWrapperCache : ComWrappers
+    {
+        public static readonly ComMemoryStreamWrapperCache Instance = new ComMemoryStreamWrapperCache();
+
+        private static readonly IntPtr s_vtable;
+        private static readonly (IntPtr Entries, int Count) s_definition;
+
+        private ComMemoryStreamWrapperCache() { }
+
+        unsafe static ComMemoryStreamWrapperCache()
+        {
+            GetIUnknownImpl(out IntPtr queryIfacePtr, out IntPtr addRefPtr, out IntPtr releasePtr);
+
+            {
+                int tableCount = 14;
+                int i = 0;
+                var vtable = (IntPtr*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+                    typeof(ComMemoryStream),
+                    IntPtr.Size * tableCount);
+                vtable[i++] = queryIfacePtr;
+                vtable[i++] = addRefPtr;
+                vtable[i++] = releasePtr;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, byte*, int, int*, int>)&UnsafeComStreamCcw.Read;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, byte*, int, int*, int>)&UnsafeComStreamCcw.Write;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, long, int, long*, int>)&UnsafeComStreamCcw.Seek;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, long, int>)&UnsafeComStreamCcw.SetSize;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, long, int*, int*, int>)&UnsafeComStreamCcw.CopyTo;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, int, int>)&UnsafeComStreamCcw.Commit;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, int>)&UnsafeComStreamCcw.Revert;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, long, long, int, int>)&UnsafeComStreamCcw.LockRegion;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, long, long, int, int>)&UnsafeComStreamCcw.UnlockRegion;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, UnsafeComStreamCcw.STATSTG*, int, int>)&UnsafeComStreamCcw.Stat;
+                vtable[i++] = (IntPtr)(delegate* unmanaged<IntPtr, IntPtr*, int>)&UnsafeComStreamCcw.Clone;
+                Debug.Assert(tableCount == i);
+                s_vtable = (IntPtr)vtable;
+            }
+
+            {
+                int definitionLen = 1;
+                int i = 0;
+                var entries = (ComInterfaceEntry*)RuntimeHelpers.AllocateTypeAssociatedMemory(
+                    typeof(ComMemoryStream),
+                    sizeof(ComInterfaceEntry) * definitionLen);
+                entries[i++] = new ComInterfaceEntry() { IID = IUnsafeComStream.IID, Vtable = s_vtable };
+                Debug.Assert(i == definitionLen);
+                s_definition = ((IntPtr)entries, definitionLen);
+            }
+        }
+
+        protected override unsafe ComInterfaceEntry* ComputeVtables(object obj, CreateComInterfaceFlags flags, out int count)
+        {
+            Debug.Assert(flags == CreateComInterfaceFlags.None);
+
+            if (obj is not ComMemoryStream)
+            {
+                throw new NotSupportedException();
+            }
+            count = s_definition.Count;
+            return (ComInterfaceEntry*)s_definition.Entries;
+        }
+
+        protected override object CreateObject(IntPtr externalComObject, CreateObjectFlags flags)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override void ReleaseObjects(IEnumerable objects)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static unsafe class UnsafeComStreamCcw
+        {
+            [UnmanagedCallersOnly]
+            public static int Read(IntPtr @this, byte* pv, int cb, int* pcbRead)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Read(pv, cb, pcbRead);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int Write(IntPtr @this, byte* pv, int cb, int* pcbWritten)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Write(pv, cb, pcbWritten);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            // IStream portion
+            [UnmanagedCallersOnly]
+            public static int Seek(IntPtr @this, long dlibMove, int dwOrigin, long* plibNewPosition)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Seek(dlibMove, dwOrigin, plibNewPosition);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int SetSize(IntPtr @this, long libNewSize)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).SetSize(libNewSize);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int CopyTo(IntPtr @this, IntPtr pstm, long cb, int* pcbRead, int* pcbWritten)
+            {
+                try
+                {
+                    var cache = new IStreamWrapperCache();
+                    var wrapper = (IStream)cache.GetOrCreateObjectForComInstance(pstm, CreateObjectFlags.UniqueInstance);
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).CopyTo(wrapper, cb, pcbRead, pcbWritten);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int Commit(IntPtr @this, int grfCommitFlags)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Commit(grfCommitFlags);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int Revert(IntPtr @this)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Revert();
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int LockRegion(IntPtr @this, long libOffset, long cb, int dwLockType)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).LockRegion(libOffset, cb, dwLockType);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int UnlockRegion(IntPtr @this, long libOffset, long cb, int dwLockType)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).UnlockRegion(libOffset, cb, dwLockType);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public readonly unsafe struct STATSTG
+            {
+                public readonly char* pwcsName;
+                public readonly int type;
+                public readonly long cbSize;
+                public readonly FILETIME mtime;
+                public readonly FILETIME ctime;
+                public readonly FILETIME atime;
+                public readonly int grfMode;
+                public readonly int grfLocksSupported;
+                public readonly Guid clsid;
+                public readonly int grfStateBits;
+                public readonly int reserved;
+
+                public STATSTG(System.Runtime.InteropServices.ComTypes.STATSTG other)
+                {
+                    pwcsName = (char*)Marshal.StringToHGlobalUni(other.pwcsName);
+                    type = other.type;
+                    cbSize = other.cbSize;
+                    mtime = other.mtime;
+                    ctime = other.ctime;
+                    atime = other.atime;
+                    grfMode = other.grfMode;
+                    grfLocksSupported = other.grfLocksSupported;
+                    clsid = other.clsid;
+                    grfStateBits = other.grfStateBits;
+                    reserved = other.reserved;
+                }
+            }
+
+            [UnmanagedCallersOnly]
+            public static int Stat(IntPtr @this, STATSTG* pstatstg, int grfStatFlag)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Stat(out var tmpStat, grfStatFlag);
+                    *pstatstg = new STATSTG(tmpStat);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+
+            [UnmanagedCallersOnly]
+            public static int Clone(IntPtr @this, IntPtr* ppstm)
+            {
+                try
+                {
+                    ComInterfaceDispatch.GetInstance<IUnsafeComStream>((ComInterfaceDispatch*)@this).Clone(out IStream stream);
+                    *ppstm = new IStreamWrapperCache().GetOrCreateComInterfaceForObject(stream, CreateComInterfaceFlags.None);
+                }
+                catch (Exception e)
+                {
+                    return e.HResult;
+                }
+                return HResult.S_OK;
+            }
+        }
+    }
+#endif
 }
 

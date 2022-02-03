@@ -6,6 +6,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace Microsoft.DiaSymReader
 {
@@ -44,9 +45,22 @@ namespace Microsoft.DiaSymReader
         [DllImport(DiaSymReaderModuleName32, EntryPoint = CreateSymWriterFactoryName)]
         private extern static void CreateSymWriter32(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)]out object symWriter);
 
+#if NET6_0_OR_GREATER
+        private static void CreateSymWriter64(ref Guid id, out object symWriter)
+        {
+            CreateSymWriter64(ref id, out IntPtr symWriterPtr);
+            var cw = new WriterComWrapperCache();
+            symWriter = cw.GetOrCreateObjectForComInstance(symWriterPtr, CreateObjectFlags.UniqueInstance);
+
+            [DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
+            [DllImport(DiaSymReaderModuleName64, EntryPoint = CreateSymWriterFactoryName)]
+            extern static void CreateSymWriter64(ref Guid id, out IntPtr symWriterPtr);
+        }
+#else
         [DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
         [DllImport(DiaSymReaderModuleName64, EntryPoint = CreateSymWriterFactoryName)]
         private extern static void CreateSymWriter64(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)]out object symWriter);
+#endif
 
         [DllImport("kernel32")]
         private static extern IntPtr LoadLibrary(string path);
@@ -139,6 +153,9 @@ namespace Microsoft.DiaSymReader
             return instance;
         }
 
+#if NET6_0_OR_GREATER
+        [SupportedOSPlatform("windows")]
+#endif
         private static Type GetComTypeType(ref Type lazyType, Guid clsid)
         {
             if (lazyType == null)
@@ -153,6 +170,9 @@ namespace Microsoft.DiaSymReader
             return lazyType;
         }
 
+#if NET6_0_OR_GREATER
+        [SupportedOSPlatform("windows")]
+#endif
         internal static object CreateObject(bool createReader, bool useAlternativeLoadPath, bool useComRegistry, out string moduleName, out Exception loadException)
         {
             object instance;
@@ -160,7 +180,7 @@ namespace Microsoft.DiaSymReader
             moduleName = null;
 
             var clsid = new Guid(createReader ? SymReaderClsid : SymWriterClsid);
-            
+
             try
             {
                 DllNotFoundException loadExceptionCandidate = null;
@@ -169,7 +189,7 @@ namespace Microsoft.DiaSymReader
                     if (useAlternativeLoadPath && GetEnvironmentVariable(AlternativeLoadPathOnlyEnvironmentVariableName) == "1")
                     {
                         instance = null;
-                    } 
+                    }
                     else if (IntPtr.Size == 4)
                     {
                         if (createReader)

@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the License.txt file in the project root for more information.
 
-#pragma warning disable 436 // SuppressUnmanagedCodeSecurityAttribute defined in source and mscorlib 
+#pragma warning disable 436 // SuppressUnmanagedCodeSecurityAttribute defined in source and mscorlib
 
 using System;
 using System.Runtime.InteropServices;
@@ -24,7 +24,9 @@ namespace Microsoft.DiaSymReader
     /// <summary>
     /// The highest version of the interface available on Desktop FX 4.0+.
     /// </summary>
+#if !NET6_0_OR_GREATER
     [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("DCF7780D-BDE9-45DF-ACFE-21731A32000C"), SuppressUnmanagedCodeSecurity]
+#endif
     internal unsafe interface ISymUnmanagedWriter5
     {
         #region ISymUnmanagedWriter
@@ -59,9 +61,9 @@ namespace Microsoft.DiaSymReader
         void DefineConstant(string name, object value, uint sig, byte* signature);
         void Abort();
 
-        #endregion
+#endregion
 
-        #region ISymUnmanagedWriter2
+#region ISymUnmanagedWriter2
 
         void DefineLocalVariable2(string name, int attributes, int localSignatureToken, uint addrKind, int index, uint addr2, uint addr3, uint startOffset, uint endOffset);
         void DefineGlobalVariable2(string name, int attributes, int sigToken, uint addrKind, uint addr1, uint addr2, uint addr3);
@@ -74,25 +76,25 @@ namespace Microsoft.DiaSymReader
         /// </remarks>
         void DefineConstant2([MarshalAs(UnmanagedType.LPWStr)] string name, VariantStructure value, int constantSignatureToken);
 
-        #endregion
+#endregion
 
-        #region ISymUnmanagedWriter3
+#region ISymUnmanagedWriter3
 
         void OpenMethod2(uint methodToken, int sectionIndex, int offsetRelativeOffset);
         void Commit();
 
-        #endregion
+#endregion
 
-        #region ISymUnmanagedWriter4
+#region ISymUnmanagedWriter4
 
         void GetDebugInfoWithPadding(ref ImageDebugDirectory debugDirectory, uint dataCount, out uint dataCountPtr, byte* data);
 
-        #endregion
+#endregion
 
-        #region ISymUnmanagedWriter5
+#region ISymUnmanagedWriter5
 
         /// <summary>
-        /// Open a special custom data section to emit token to source span mapping information into. 
+        /// Open a special custom data section to emit token to source span mapping information into.
         /// Opening this section while a method is already open or vice versa is an error.
         /// </summary>
         void OpenMapTokensToSourceSpans();
@@ -104,25 +106,31 @@ namespace Microsoft.DiaSymReader
         void CloseMapTokensToSourceSpans();
 
         /// <summary>
-        /// Maps the given metadata token to the given source line span in the specified source file. 
+        /// Maps the given metadata token to the given source line span in the specified source file.
         /// Must be called between calls to <see cref="OpenMapTokensToSourceSpans"/> and <see cref="CloseMapTokensToSourceSpans"/>.
         /// </summary>
         void MapTokenToSourceSpan(int token, ISymUnmanagedDocumentWriter document, int startLine, int startColumn, int endLine, int endColumn);
 
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The highest version of the interface available in Microsoft.DiaSymReader.Native.
     /// </summary>
+#if !NET6_0_OR_GREATER
     [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("5ba52f3b-6bf8-40fc-b476-d39c529b331e"), SuppressUnmanagedCodeSecurity]
+#endif
     internal interface ISymUnmanagedWriter8 : ISymUnmanagedWriter5
     {
         //  ISymUnmanagedWriter, ISymUnmanagedWriter2, ISymUnmanagedWriter3, ISymUnmanagedWriter4, ISymUnmanagedWriter5
         void _VtblGap1_33();
 
         // ISymUnmanagedWriter6
+#if NET6_0_OR_GREATER
+        void InitializeDeterministic(object emitter, object stream);
+#else
         void InitializeDeterministic([MarshalAs(UnmanagedType.IUnknown)] object emitter, [MarshalAs(UnmanagedType.IUnknown)] object stream);
+#endif
 
         // ISymUnmanagedWriter7
         unsafe void UpdateSignatureByHashingContent([In]byte* buffer, int size);
@@ -157,7 +165,7 @@ namespace Microsoft.DiaSymReader
         private readonly long _longValue;
 
         /// <summary>
-        /// This field determines the size of the struct 
+        /// This field determines the size of the struct
         /// (16 bytes on 32-bit platforms, 24 bytes on 64-bit platforms).
         /// </summary>
         [FieldOffset(8)]
